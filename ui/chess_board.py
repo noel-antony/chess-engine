@@ -3,6 +3,7 @@ from PySide6.QtGui import QPainter, QPen, QColor, QBrush
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import QRectF
 from chess.board import Board
+from chess.move import Move
 
 pieces = {
     ("white", "pawn"): QSvgRenderer("assets/pieces/Chess_plt45.svg"),
