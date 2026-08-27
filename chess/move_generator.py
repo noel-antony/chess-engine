@@ -54,7 +54,7 @@ class MoveGenerator:
         forward = []
         captures = []
         moves = []
-
+        
         if piece.color == "black":
             forward.append((row + 1, col))
 
@@ -77,19 +77,44 @@ class MoveGenerator:
 
         for new_row, new_col in forward:
             if self.board.is_valid_position(new_row, new_col):
+
                 destination = self.board.position[new_row][new_col]
+                is_promotion = (piece.color == "white" and new_row == 0) or (piece.color == "black" and new_row == 7)
 
                 if destination is None:
-                    move = Move((row, col), (new_row, new_col))
-                    moves.append(move)
+                    if is_promotion:
+                        for promotion_piece in ("queen", "rook", "bishop", "knight"):
+                            moves.append(Move((row, col), (new_row, new_col), promotion=promotion_piece))
+                    else:
+                        moves.append(Move((row, col), (new_row, new_col)))
 
         for new_row, new_col in captures:
             if self.board.is_valid_position(new_row, new_col):
+
                 destination = self.board.position[new_row][new_col]
+                is_promotion = (piece.color == "white" and new_row == 0) or (piece.color == "black" and new_row == 7)
 
                 if destination is not None and destination.color != piece.color:
-                    move = Move((row, col), (new_row, new_col))
-                    moves.append(move)
+                    if is_promotion:
+                        for promotion_piece in ("queen", "rook", "bishop", "knight"):
+                            moves.append(Move((row, col), (new_row, new_col), promotion=promotion_piece))
+                    else:
+                        moves.append(Move((row, col), (new_row, new_col)))
+
+        if self.board.move_history:
+            last_move = self.board.move_history[-1]
+
+            moved_pawn = last_move.moved_piece.piece_type == "pawn"
+            enemy_pawn = last_move.moved_piece.color != piece.color
+            double_move = abs(last_move.start[0] - last_move.end[0]) == 2
+            beside_pawn = (last_move.end[0] == row and abs(last_move.end[1] - col) == 1)
+
+            if moved_pawn and enemy_pawn and double_move and beside_pawn:
+                new_row = row - 1 if piece.color == "white" else row + 1
+                new_col = last_move.end[1]
+
+                move = Move((row, col), (new_row, new_col), special="en_passant")
+                moves.append(move)
 
         return moves
 
@@ -119,6 +144,14 @@ class MoveGenerator:
     def get_king_moves(self, row, col):
         moves = []
         piece = self.board.position[row][col]
+
+        if self.board.can_castle_kingside(piece.color):
+            move = Move((row, col), (row, col+2), special="castle_kingside")
+            moves.append(move)
+
+        if self.board.can_castle_queenside(piece.color):
+            move = Move((row, col), (row, col-2), special="castle_queenside")
+            moves.append(move)
 
         for row_offset, col_offset in KING_OFFSETS:
             new_row = row + row_offset
