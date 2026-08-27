@@ -91,7 +91,7 @@ class Board:
 
             self.position[capt_row][capt_col] = None
 
-
+        self.position[start_row][start_col] = None
         self.move_history.append(move)
 
     def undo_move(self):

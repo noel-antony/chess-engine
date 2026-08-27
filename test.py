@@ -169,3 +169,150 @@ def print_moves_from(row, col):
 # board.undo_move()
 
 # print("ALL SPECIAL MOVE TESTS PASSED")
+
+
+# Test 10 - all
+
+from chess.board import Board
+from chess.move import Move
+from chess.piece import Piece
+
+board = Board()
+
+# Starting position
+assert len(board.get_all_legal_moves("white")) == 20
+assert len(board.get_all_legal_moves("black")) == 20
+
+
+# Normal move + capture + undo
+clear_board()
+add_piece(7, 4, "white", "king")
+add_piece(0, 4, "black", "king")
+add_piece(6, 4, "white", "pawn")
+add_piece(5, 3, "black", "pawn")
+
+move = Move((6, 4), (5, 3))
+board.make_move(move)
+
+assert board.position[5][3].color == "white"
+assert move.captured_piece.color == "black"
+
+board.undo_move()
+
+assert board.position[6][4].piece_type == "pawn"
+assert board.position[5][3].piece_type == "pawn"
+
+
+# King safety
+clear_board()
+add_piece(0, 0, "black", "king")
+add_piece(1, 1, "white", "queen")
+add_piece(2, 2, "white", "king")
+
+assert board.is_in_check("black")
+assert len(board.get_all_legal_moves("black")) == 0
+assert board.is_checkmate("black")
+assert not board.is_stalemate("black")
+
+
+# Promotion + undo
+clear_board()
+add_piece(1, 4, "white", "pawn")
+add_piece(7, 7, "white", "king")
+add_piece(0, 0, "black", "king")
+
+moves = board.generate_moves(1, 4)
+assert {m.promotion for m in moves} == {
+    "queen", "rook", "bishop", "knight"
+}
+
+move = next(m for m in moves if m.promotion == "queen")
+board.make_move(move)
+
+assert board.position[0][4].piece_type == "queen"
+assert board.position[0][4].has_moved
+
+board.undo_move()
+
+assert board.position[1][4].piece_type == "pawn"
+assert board.position[0][4] is None
+
+
+# Castling + undo
+clear_board()
+add_piece(7, 4, "white", "king")
+add_piece(7, 0, "white", "rook")
+add_piece(7, 7, "white", "rook")
+add_piece(0, 4, "black", "king")
+
+moves = board.generate_moves(7, 4)
+
+ks = next(m for m in moves if m.special == "castle_kingside")
+qs = next(m for m in moves if m.special == "castle_queenside")
+
+board.make_move(ks)
+
+assert board.position[7][6].piece_type == "king"
+assert board.position[7][5].piece_type == "rook"
+
+board.undo_move()
+
+assert board.position[7][4].piece_type == "king"
+assert board.position[7][7].piece_type == "rook"
+assert not board.position[7][4].has_moved
+assert not board.position[7][7].has_moved
+
+board.make_move(qs)
+
+assert board.position[7][2].piece_type == "king"
+assert board.position[7][3].piece_type == "rook"
+
+board.undo_move()
+
+assert board.position[7][4].piece_type == "king"
+assert board.position[7][0].piece_type == "rook"
+
+
+# En passant + undo
+clear_board()
+add_piece(7, 4, "white", "king")
+add_piece(0, 4, "black", "king")
+add_piece(3, 4, "white", "pawn")
+add_piece(1, 3, "black", "pawn")
+
+board.make_move(Move((1, 3), (3, 3)))
+
+moves = board.generate_moves(3, 4)
+ep = next(m for m in moves if m.special == "en_passant")
+
+board.make_move(ep)
+
+assert board.position[2][3].piece_type == "pawn"
+assert board.position[3][3] is None
+assert board.position[3][4] is None
+
+board.undo_move()
+
+assert board.position[3][4].piece_type == "pawn"
+assert board.position[3][3].piece_type == "pawn"
+assert board.position[2][3] is None
+
+board.undo_move()
+
+assert board.position[1][3].piece_type == "pawn"
+assert board.position[3][3] is None
+
+
+# Stalemate
+clear_board()
+add_piece(0, 0, "black", "king")
+add_piece(1, 2, "white", "queen")
+add_piece(2, 1, "white", "king")
+
+assert not board.is_in_check("black")
+assert len(board.get_all_legal_moves("black")) == 0
+assert not board.is_checkmate("black")
+assert board.is_stalemate("black")
+
+
+print("ALL RULES TESTS PASSED ✅")
