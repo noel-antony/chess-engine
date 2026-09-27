@@ -39,6 +39,7 @@ class Board:
 
         self.move_generator = MoveGenerator(self)
         self.move_history = []
+        self.current_turn = "white"
 
     def make_move(self, move):
         start_row, start_col = move.start
