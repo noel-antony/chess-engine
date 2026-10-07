@@ -15,7 +15,7 @@ def print_moves(moves):
         print(f"{move.start} -> {move.end}")
 
 def print_moves_from(row, col):
-    moves = board.generate_moves((row, col))
+    moves = board.generate_pseudo_legal_moves((row, col))
     print(f"Moves from ({row}, {col}):")
     print_moves(moves)
 
@@ -115,7 +115,7 @@ def print_moves_from(row, col):
 # add_piece(7, 7, "white", "king")
 # add_piece(0, 0, "black", "king")
 
-# moves = board.generate_moves(1, 4)
+# moves = board.generate_pseudo_legal_moves(1, 4)
 
 # assert {m.promotion for m in moves} == {
 #     "queen", "rook", "bishop", "knight"
@@ -133,7 +133,7 @@ def print_moves_from(row, col):
 # add_piece(7, 7, "white", "rook")
 # add_piece(0, 4, "black", "king")
 
-# moves = board.generate_moves(7, 4)
+# moves = board.generate_pseudo_legal_moves(7, 4)
 # ks = next(m for m in moves if m.special == "castle_kingside")
 # qs = next(m for m in moves if m.special == "castle_queenside")
 
@@ -155,7 +155,7 @@ def print_moves_from(row, col):
 
 # board.make_move(Move((1, 3), (3, 3)))
 
-# moves = board.generate_moves(3, 4)
+# moves = board.generate_pseudo_legal_moves(3, 4)
 # ep = next(m for m in moves if m.special == "en_passant")
 
 # board.make_move(ep)
@@ -221,7 +221,7 @@ def print_moves_from(row, col):
 # add_piece(7, 7, "white", "king")
 # add_piece(0, 0, "black", "king")
 
-# moves = board.generate_moves(1, 4)
+# moves = board.generate_pseudo_legal_moves(1, 4)
 # assert {m.promotion for m in moves} == {
 #     "queen", "rook", "bishop", "knight"
 # }
@@ -245,7 +245,7 @@ def print_moves_from(row, col):
 # add_piece(7, 7, "white", "rook")
 # add_piece(0, 4, "black", "king")
 
-# moves = board.generate_moves(7, 4)
+# moves = board.generate_pseudo_legal_moves(7, 4)
 
 # ks = next(m for m in moves if m.special == "castle_kingside")
 # qs = next(m for m in moves if m.special == "castle_queenside")
@@ -282,7 +282,7 @@ def print_moves_from(row, col):
 
 # board.make_move(Move((1, 3), (3, 3)))
 
-# moves = board.generate_moves(3, 4)
+# moves = board.generate_pseudo_legal_moves(3, 4)
 # ep = next(m for m in moves if m.special == "en_passant")
 
 # board.make_move(ep)

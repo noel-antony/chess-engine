@@ -241,7 +241,7 @@ class Board:
         if piece is None:
             return []
 
-        pseudo_legal_moves = self.generate_moves(row, col)
+        pseudo_legal_moves = self.generate_pseudo_legal_moves(row, col)
         legal_moves = []
 
         for move in pseudo_legal_moves:
@@ -253,8 +253,8 @@ class Board:
 
         return legal_moves
 
-    def generate_moves(self, row, col):
-        return self.move_generator.generate_moves(row, col)
+    def generate_pseudo_legal_moves(self, row, col):
+        return self.move_generator.generate_pseudo_legal_moves(row, col)
 
     def is_in_check(self, color):
         return self.move_generator.is_in_check(color)
@@ -325,3 +325,22 @@ class Board:
                 return False
 
         return True
+
+    def get_all_capture_moves(self, color):
+        captures = []
+
+        for row in range(8):
+            for col in range(8):
+                piece = self.position[row][col]
+
+                if piece is not None and piece.color == color:
+                    legal_moves = self.generate_legal_moves(row, col)
+
+                    for move in legal_moves:
+                        if (
+                            move.captured_piece is not None
+                            or move.special == "en_passant"
+                        ):
+                            captures.append(move)
+
+        return captures

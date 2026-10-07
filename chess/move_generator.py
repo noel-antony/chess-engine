@@ -40,7 +40,7 @@ class MoveGenerator:
 
         self.board = board
 
-    def generate_moves(self, row, col):
+    def generate_pseudo_legal_moves(self, row, col):
 
         if not self.board.is_valid_position(row, col):
             return []
