@@ -1,5 +1,4 @@
-# ui/styles.py
-# Premium dark chess-app aesthetic
+
 
 BG_MAIN = "#111315"
 BG_PANEL = "#181B1F"
