@@ -1,202 +1,264 @@
 from PySide6.QtWidgets import QWidget, QSizePolicy, QMenu
-from PySide6.QtGui import QPainter, QPen, QColor, QBrush
+from PySide6.QtGui import QPainter, QPen, QColor, QBrush, QFont, QFontMetrics
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtCore import QRectF, Qt, Signal, QPoint, QTimer
 from chess.board import Board
-from chess.agent import ChessAgent
+from ui.styles import BOARD_LIGHT, BOARD_DARK
 
-pieces = {
-    ("white", "pawn"): QSvgRenderer("assets/pieces/Chess_plt45.svg"),
-    ("white", "rook"): QSvgRenderer("assets/pieces/Chess_rlt45.svg"),
-    ("white", "knight"): QSvgRenderer("assets/pieces/Chess_nlt45.svg"),
-    ("white", "bishop"): QSvgRenderer("assets/pieces/Chess_blt45.svg"),
-    ("white", "queen"): QSvgRenderer("assets/pieces/Chess_qlt45.svg"),
-    ("white", "king"): QSvgRenderer("assets/pieces/Chess_klt45.svg"),
-    ("black", "pawn"): QSvgRenderer("assets/pieces/Chess_pdt45.svg"),
-    ("black", "rook"): QSvgRenderer("assets/pieces/Chess_rdt45.svg"),
-    ("black", "knight"): QSvgRenderer("assets/pieces/Chess_ndt45.svg"),
-    ("black", "bishop"): QSvgRenderer("assets/pieces/Chess_bdt45.svg"),
-    ("black", "queen"): QSvgRenderer("assets/pieces/Chess_qdt45.svg"),
-    ("black", "king"): QSvgRenderer("assets/pieces/Chess_kdt45.svg"),
-}
-
-class ChessBoard(QWidget):
-    turn_changed = Signal(str)
-    status_changed = Signal(str)
-    def __init__(self):
+class ChessBoardWidget(QWidget):
+    move_requested = Signal(tuple, tuple, object)  # start, end, promotion
+    square_selected = Signal(tuple)
+    
+    def __init__(self, board: Board):
         super().__init__()
-        self.board = Board()
+        self.board = board
         self.selected_square = None
         self.legal_moves = []
+        self.last_move = None
+        self.is_flipped = False
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.agent = ChessAgent(depth=3)
+        self.setMinimumSize(400, 400)
+        self.setMouseTracking(True)
+        self.hovered_square = None
+        self.animation_step = 0
+        self.is_active = False
+        
+        self.pieces_svg = {}
+        self.load_pieces()
 
-    def make_ai_move(self):
-        move = self.agent.get_move(self.board)
+    def load_pieces(self):
+        colors = ["white", "black"]
+        types = ["pawn", "rook", "knight", "bishop", "queen", "king"]
+        codes = {"white": "l", "black": "d"}
+        letters = {"pawn": "p", "rook": "r", "knight": "n", "bishop": "b", "queen": "q", "king": "k"}
+        
+        for c in colors:
+            for t in types:
+                file_path = f"assets/pieces/Chess_{letters[t]}{codes[c]}t45.svg"
+                self.pieces_svg[(c, t)] = QSvgRenderer(file_path)
 
-        if move is None:
-            return
-
-        self.board.make_move(move)
-        self.board.current_turn = ("black" if self.board.current_turn == "white" else "white")
-
-        self.turn_changed.emit(self.board.current_turn)
+    def set_board(self, board):
+        self.board = board
         self.update()
 
+    def set_flipped(self, flipped):
+        self.is_flipped = flipped
+        self.update()
+
+    def set_active(self, active):
+        self.is_active = active
+        self.update()
+
+    def highlight_last_move(self, start, end):
+        self.last_move = (start, end)
+        self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        pen = QPen(QColor(255, 195, 0))
-
+        painter.setRenderHint(QPainter.Antialiasing)
+        
         board_size, sq_size, x_offset, y_offset = self.get_board_geometry()
-
-        brushes = [
-            QBrush(QColor(238, 238, 210)),
-            QBrush(QColor(80, 135, 69))
-        ]
-        pen.setWidth((board_size * 0.004))
-        painter.setPen(pen)
-
+        
+        # Draw border
+        painter.setPen(QPen(QColor("#30353D"), 2))
+        painter.drawRect(int(x_offset), int(y_offset), int(board_size), int(board_size))
+        
+        light_brush = QBrush(QColor(BOARD_LIGHT))
+        dark_brush = QBrush(QColor(BOARD_DARK))
+        
+        font = QFont("Segoe UI", max(8, int(sq_size * 0.15)), QFont.Bold)
+        painter.setFont(font)
+        
+        # Draw squares
         for row in range(8):
             for col in range(8):
-                x = x_offset + col * sq_size
-                y = y_offset + row * sq_size
-
+                render_row = 7 - row if self.is_flipped else row
+                render_col = 7 - col if self.is_flipped else col
+                
+                x = x_offset + render_col * sq_size
+                y = y_offset + render_row * sq_size
+                
                 rect = QRectF(x, y, sq_size, sq_size)
-                painter.setBrush(brushes[(row + col) % 2])
-                painter.drawRect(x, y, sq_size, sq_size)
-
-                if self.selected_square == (row, col):
-                    painter.setBrush(QBrush(QColor(255, 205, 50, 100)))
-                    painter.setPen(pen)
-                    painter.drawRect(rect)
-
-        for move in self.legal_moves:
-            row, col = move.end
-
-            x = x_offset + col * sq_size
-            y = y_offset + row * sq_size
-
-            if move.captured_piece is not None or move.special == "en_passant":
-                painter.setBrush(QBrush(QColor(170, 60, 60, 120)))
-            else:
-                painter.setBrush(QBrush(QColor(50, 50, 50, 100)))
-
-            painter.setPen(Qt.NoPen)
-            painter.drawEllipse(QRectF(x + sq_size * 0.3, y + sq_size * 0.3, sq_size * 0.4, sq_size * 0.4))
-
-        for row in range(8):
-            for col in range(8):
-                x = x_offset + col * sq_size
-                y = y_offset + row * sq_size
-                rect = QRectF(x, y, sq_size, sq_size)
-
-                piece = self.board.position[row][col]
-                if piece is not None:
-                    renderer = pieces[(piece.color, piece.piece_type)]
-                    renderer.render(painter, rect)
-
-    def mousePressEvent(self, event):
-        _, sq_size, x_offset, y_offset = self.get_board_geometry()
-
-        x = event.position().x()
-        y = event.position().y()
-
-        col = int((x - x_offset) // sq_size)
-        row = int((y - y_offset) // sq_size)
-
-        if not (0 <= row < 8 and 0 <= col < 8):
-            return
-
-        position = (row, col)
-
-        if self.selected_square is not None:
-            matching_moves = [
-                move for move in self.legal_moves
-                if move.end == position
-            ]
-
-            if matching_moves:
-                if matching_moves[0].promotion is not None:
-
-                    menu = QMenu(self)
-                    menu.addAction("Queen")
-                    menu.addAction("Rook")
-                    menu.addAction("Bishop")
-                    menu.addAction("Knight")
-
-                    action = menu.exec(
-                        self.mapToGlobal(
-                            QPoint(int(x), int(y))
-                        )
-                    )
-
-                    if action is None:
-                        return
-
-                    choice = action.text().lower()
-
-                    for move in matching_moves:
-                        if move.promotion == choice:
-                            break
-
+                
+                if (row + col) % 2 == 0:
+                    painter.setBrush(light_brush)
+                    text_color = QColor(BOARD_DARK)
                 else:
-                    move = matching_moves[0]
+                    painter.setBrush(dark_brush)
+                    text_color = QColor(BOARD_LIGHT)
+                    
+                painter.setPen(Qt.NoPen)
+                painter.drawRect(rect)
+                
+                # Last move highlight
+                if self.last_move and (row, col) in self.last_move:
+                    painter.setBrush(QBrush(QColor(255, 255, 0, 80)))
+                    painter.drawRect(rect)
+                    
+                # Selected square highlight
+                if self.selected_square == (row, col):
+                    painter.setBrush(QBrush(QColor(79, 140, 255, 100)))
+                    painter.drawRect(rect)
+                    
+                # Hover effect
+                if self.hovered_square == (row, col):
+                    painter.setPen(QPen(QColor(255, 255, 255, 100), 2))
+                    painter.setBrush(Qt.NoBrush)
+                    painter.drawRect(rect.adjusted(1, 1, -1, -1))
+                
+                # Draw coordinates
+                painter.setPen(text_color)
+                if render_col == 0:  # Ranks
+                    rank = str(8 - row)
+                    painter.drawText(int(x + 2), int(y + sq_size * 0.2), rank)
+                if render_row == 7:  # Files
+                    file_name = chr(ord('a') + col)
+                    painter.drawText(int(x + sq_size - sq_size * 0.15 - 5), int(y + sq_size - 4), file_name)
 
-                self.board.make_move(move)
+        # Highlight king in check
+        white_in_check = self.board.is_in_check("white")
+        black_in_check = self.board.is_in_check("black")
+        
+        if white_in_check or black_in_check:
+            for r in range(8):
+                for c in range(8):
+                    piece = self.board.position[r][c]
+                    if piece and piece.piece_type == "king":
+                        if (piece.color == "white" and white_in_check) or (piece.color == "black" and black_in_check):
+                            render_row = 7 - r if self.is_flipped else r
+                            render_col = 7 - c if self.is_flipped else c
+                            x = x_offset + render_col * sq_size
+                            y = y_offset + render_row * sq_size
+                            
+                            # Radial gradient for check
+                            from PySide6.QtGui import QRadialGradient
+                            grad = QRadialGradient(x + sq_size/2, y + sq_size/2, sq_size/2)
+                            grad.setColorAt(0, QColor(255, 0, 0, 200))
+                            grad.setColorAt(1, QColor(255, 0, 0, 0))
+                            painter.setBrush(QBrush(grad))
+                            painter.setPen(Qt.NoPen)
+                            painter.drawRect(QRectF(x, y, sq_size, sq_size))
 
-                self.board.current_turn = (
-                    "black"
-                    if self.board.current_turn == "white"
-                    else "white"
-                )
+        # Draw legal move dots
+        for move in self.legal_moves:
+            r, c = move.end
+            render_row = 7 - r if self.is_flipped else r
+            render_col = 7 - c if self.is_flipped else c
+            
+            x = x_offset + render_col * sq_size
+            y = y_offset + render_row * sq_size
+            
+            if move.captured_piece or move.special == "en_passant":
+                painter.setPen(QPen(QColor(0, 0, 0, 50), sq_size * 0.1))
+                painter.setBrush(Qt.NoBrush)
+                painter.drawEllipse(QRectF(x + sq_size * 0.1, y + sq_size * 0.1, sq_size * 0.8, sq_size * 0.8))
+            else:
+                painter.setBrush(QBrush(QColor(0, 0, 0, 50)))
+                painter.setPen(Qt.NoPen)
+                painter.drawEllipse(QRectF(x + sq_size * 0.35, y + sq_size * 0.35, sq_size * 0.3, sq_size * 0.3))
 
-                self.selected_square = None
-                self.legal_moves = []
+        # Draw pieces
+        for row in range(8):
+            for col in range(8):
+                piece = self.board.position[row][col]
+                if piece:
+                    render_row = 7 - row if self.is_flipped else row
+                    render_col = 7 - col if self.is_flipped else col
+                    
+                    x = x_offset + render_col * sq_size
+                    y = y_offset + render_row * sq_size
+                    rect = QRectF(x, y, sq_size, sq_size)
+                    
+                    renderer = self.pieces_svg.get((piece.color, piece.piece_type))
+                    if renderer:
+                        renderer.render(painter, rect)
 
-                self.turn_changed.emit(self.board.current_turn)
-                self.update()
-
-                if self.board.current_turn == "black":
-                    QTimer.singleShot(50, self.make_ai_move)
-
-                return
-
-            self.selected_square = None
-            self.legal_moves = []
-
-        piece = self.board.position[row][col]
-
-        if piece is not None and piece.color == self.board.current_turn:
-            self.selected_square = position
-            self.legal_moves = self.board.generate_legal_moves(row, col)
-
-        self.update()
-
+        # Inactive overlay
+        if not self.is_active:
+            painter.setBrush(QBrush(QColor(24, 27, 31, 150)))
+            painter.setPen(Qt.NoPen)
+            painter.drawRect(int(x_offset), int(y_offset), int(board_size), int(board_size))
 
     def get_board_geometry(self):
-        board_size = min(self.width(), self.height()) - 10
+        # Determine the square size based on the smallest dimension
+        board_size = min(self.width(), self.height()) - 20
         sq_size = board_size / 8
-
+        
         x_offset = (self.width() - board_size) / 2
         y_offset = (self.height() - board_size) / 2
-
+        
         return board_size, sq_size, x_offset, y_offset
 
-    def new_game(self):
-        self.board = Board()
-        self.selected_square = None
-        self.legal_moves = []
-        self.update()
-        self.turn_changed.emit(self.board.current_turn)
-
-    def undo_move(self):
-        if not self.board.move_history:
+    def mouseMoveEvent(self, event):
+        if not self.is_active:
             return
+            
+        _, sq_size, x_offset, y_offset = self.get_board_geometry()
+        x = event.position().x()
+        y = event.position().y()
+        
+        col = int((x - x_offset) // sq_size)
+        row = int((y - y_offset) // sq_size)
+        
+        if self.is_flipped:
+            row = 7 - row
+            col = 7 - col
+            
+        if 0 <= row < 8 and 0 <= col < 8:
+            if self.hovered_square != (row, col):
+                self.hovered_square = (row, col)
+                self.update()
+        else:
+            if self.hovered_square is not None:
+                self.hovered_square = None
+                self.update()
 
-        self.board.undo_move()
-        self.board.current_turn = "black" if self.board.current_turn == "white" else "white"
+    def leaveEvent(self, event):
+        self.hovered_square = None
+        self.update()
+
+    def mousePressEvent(self, event):
+        if not self.is_active or event.button() != Qt.LeftButton:
+            return
+            
+        _, sq_size, x_offset, y_offset = self.get_board_geometry()
+        x = event.position().x()
+        y = event.position().y()
+        
+        col = int((x - x_offset) // sq_size)
+        row = int((y - y_offset) // sq_size)
+        
+        if self.is_flipped:
+            row = 7 - row
+            col = 7 - col
+            
+        if not (0 <= row < 8 and 0 <= col < 8):
+            return
+            
+        position = (row, col)
+        
+        if self.selected_square is not None:
+            matching_moves = [m for m in self.legal_moves if m.end == position]
+            if matching_moves:
+                if matching_moves[0].promotion:
+                    # Notify controller to handle promotion
+                    self.move_requested.emit(self.selected_square, position, "promotion_pending")
+                else:
+                    self.move_requested.emit(self.selected_square, position, None)
+                return
+
+        piece = self.board.position[row][col]
+        if piece and piece.color == self.board.current_turn:
+            self.selected_square = position
+            self.legal_moves = self.board.generate_legal_moves(row, col)
+            self.square_selected.emit(position)
+        else:
+            self.selected_square = None
+            self.legal_moves = []
+            
+        self.update()
+
+    def clear_selection(self):
         self.selected_square = None
         self.legal_moves = []
-        self.turn_changed.emit(self.board.current_turn)
         self.update()
