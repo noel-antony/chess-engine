@@ -318,7 +318,7 @@ def print_moves_from(row, col):
 # print("ALL RULES TESTS PASSED ✅")
 
 from chess.board import Board
-from chess.minimax import Minimax
+from engine.minimax import Minimax
 
 board = Board()
 engine = Minimax()

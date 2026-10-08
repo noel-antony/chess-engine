@@ -1,5 +1,5 @@
 from PySide6.QtCore import QThread, Signal
-from chess.agent import ChessAgent
+from engine.agent import ChessAgent
 from chess.board import Board
 import copy
 

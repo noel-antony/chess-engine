@@ -1,4 +1,4 @@
-from chess.evaluation import Evaluator
+from engine.evaluation import Evaluator
 
 
 class Minimax:

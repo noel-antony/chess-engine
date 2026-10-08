@@ -6,7 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence
 
 from chess.board import Board
-from chess.evaluation import Evaluator
+from engine.evaluation import Evaluator
 
 from ui.chess_board import ChessBoardWidget
 from ui.game_panel import GamePanel

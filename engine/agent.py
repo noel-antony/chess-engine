@@ -1,4 +1,4 @@
-from chess.minimax import Minimax
+from engine.minimax import Minimax
 
 class ChessAgent:
     def __init__(self, depth=4):
